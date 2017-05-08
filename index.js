@@ -160,8 +160,15 @@ function parseLine(line) {
 	} 
 
 	if (tok[0] == "Pot:" && tok.length==2){
-		zoom_rate = parseInt(tok[1]) - 600;			// re-center for the pot we have
-		//console.log("Zoom: " + zoom_rate)
+
+		var x = parseInt(tok[1]) / 1023.0;	// 0..1023 -> 0..1
+
+		// We have an audio taper. Take an inverse power to expand the low range
+		x = Math.power(x, 0.2)
+
+		zoom_rate = 2*x-1;		// --> -1..1
+		
+		console.log("Zoom: " + zoom_rate)
 	}
 }
 
