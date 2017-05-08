@@ -1,10 +1,22 @@
 // Navigator
 // Read telescope orientation and pan the image on Gigapan
 
+
+// -- Get gigapan URL to open ---
+
+var url;
+
+if (process.argv.length < 3) {
+	console.log("You need to specify a gigapan URL to open")
+	return;
+}
+url = process.argv[2]
+
 // --- Drive the browser ---
 
 const frame_rate = 10;
-const pan_speed = 10;
+const x_pan_speed = 10;
+const y_pan_speed = 20;
 const deadband = 7; 	// scope must be this many degrees away from center to do anything
 
 var pan_rate_x = 0;
@@ -18,24 +30,34 @@ var iter = 0;
 
 var chrome = require('chromedriver');
 var webdriver = require('selenium-webdriver');
-
-var chromeCapabilities = webdriver.Capabilities.chrome();
-var chromeOptions = {
-    'args': ['--start-fullscreen']
-};
-chromeCapabilities.set('chromeOptions', chromeOptions);
-
 var browser = new webdriver.Builder()
   .forBrowser('chrome')
-  .withCapabilities(chromeCapabilities)
   .build();
 
 var cel; // canvas element
 
-browser.get('http://www.gigapan.com/gigapans/117375');
+browser.get(url);
+
+// Go full screen
+browser.findElement(webdriver.By.id("full-screen-button"))
+	.then( el => {
+		browser.actions().click(el).perform();
+	});
+
+
+// hide all UI
+browser.findElement(webdriver.By.id("gigapan-navigation"))
+	.then( el => {
+		browser.executeScript('document.getElementById("gigapan-navigation").style.display = "none";');
+		browser.executeScript('document.getElementById("footer-panel").style.display = "none";');
+		browser.executeScript('document.getElementById("gigapan-watermark").style.display = "none";');
+	});
+
+// Move mouse to initial position and press button
 browser.findElement(webdriver.By.tagName("canvas"))
 	.then( el => {
-		cel = el;
+		cel = el; 
+
 		browser.actions().click(cel).click(cel).
 			mouseMove(cel, {x:0, y:0}).mouseDown(cel).perform();
 
@@ -72,8 +94,8 @@ function loop() {
 	pan_rate_x = deaden(pan_rate_x)
 	pan_rate_y = deaden(pan_rate_y)
 
-	cx -= pan_speed*pan_rate_x/frame_rate;
-	cy -= pan_speed*pan_rate_y/frame_rate;
+	cx -= x_pan_speed*pan_rate_x/frame_rate;
+	cy -= y_pan_speed*pan_rate_y/frame_rate;
 	//cx = -iter*10;
 	//cy = -iter*5;
 	browser.actions()
@@ -105,7 +127,7 @@ function loop() {
 // --- Read orientation from Arduino on serial ---
 
 var samples = 0;
-var last_yaw;
+var last_yaw, last_pitch;
 
 // Process a line of data received from the serial port
 function parseLine(line) {
@@ -119,7 +141,7 @@ function parseLine(line) {
 
   	// Take 10th sample as calibration point, or if yaw suddenly pops
   	samples+=1;
-  	var recal = last_yaw && Math.abs(yaw-last_yaw) > 90;
+  	var recal = last_yaw && ((Math.abs(yaw-last_yaw) > 20) || (Math.abs(pitch-last_pitch) > 20));
   	if (recal)
   		console.log("Recalibrating...")
 	  if ((samples == 10) || recal) {
