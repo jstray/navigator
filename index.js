@@ -17,8 +17,9 @@ url = process.argv[2]
 const frame_rate = 10;
 const x_pan_speed = 10;
 const y_pan_speed = 20;
-const zoom_speed = 1;
-const deadband = 7; 	// scope must be this many degrees away from center to do anything
+const deadpan = 7; 	// scope must be this many degrees away from center to do anything
+const zoom_speed = 0.2;
+const deadzoom = 0.2; // zoom rate is a -0.5 -> 0.5 scale
 
 var pan_rate_x = 0;
 var pan_rate_y = 0;
@@ -38,7 +39,7 @@ var browser = new webdriver.Builder()
   .build();
 
 browser.get(url);
-/*
+
 // Go full screen
 browser.findElement(webdriver.By.id("full-screen-button"))
 	.then( el => {
@@ -53,7 +54,7 @@ browser.findElement(webdriver.By.id("gigapan-navigation"))
 		browser.executeScript('document.getElementById("footer-panel").style.display = "none";');
 		browser.executeScript('document.getElementById("gigapan-watermark").style.display = "none";');
 	});
-*/
+
 // Move mouse to initial position and press button on canvas
 var cel; // canvas element saved for later
 browser.findElement(webdriver.By.tagName("canvas"))
@@ -68,11 +69,11 @@ browser.findElement(webdriver.By.tagName("canvas"))
 
 
 // Deadband -- area near center of control where there is no panning
-function deaden(x) {
-	if (x > deadband) {
-		x -= deadband;
-	} else if (x < -deadband) {
-		x += deadband;
+function deaden(x, d) {
+	if (x > d) {
+		x -= d;
+	} else if (x < -d) {
+		x += d;
 	} else {
 		x = 0;
 	}
@@ -102,8 +103,9 @@ function loop() {
 		pan_rate_x += 360;
 	pan_rate_y = pitch-pitch0;
 
-	pan_rate_x = deaden(pan_rate_x)
-	pan_rate_y = deaden(pan_rate_y)
+	pan_rate_x = deaden(pan_rate_x,deadpan)
+	pan_rate_y = deaden(pan_rate_y,deadpan)
+
 
 	cx -= x_pan_speed*pan_rate_x/frame_rate;
 	cy -= y_pan_speed*pan_rate_y/frame_rate;
@@ -112,8 +114,7 @@ function loop() {
 		.mouseMove(cel, {x:Math.round(cx), y:Math.round(cy)})
 		.perform();
 
-  var delta = zoom_rate * zoom_speed;
-  console.log(makeWheelScript(delta))
+  var delta = deaden(zoom_rate,deadzoom) * zoom_speed;
 	browser.executeScript(makeWheelScript(delta))
 
 	console.log("panx: " + pan_rate_x);
@@ -161,14 +162,16 @@ function parseLine(line) {
 
 	if (tok[0] == "Pot:" && tok.length==2){
 
-		var x = parseInt(tok[1]) / 1023.0;	// 0..1023 -> 0..1
+		var raw = parseInt(tok[1]) ;	// 0..1023
 
-		// We have an audio taper. Take an inverse power to expand the low range
-		x = Math.power(x, 0.2)
+		var x = (raw-290)/640;
+		if (x<0.5) x=0.5;
+		x=(x-0.5)*2;
 
-		zoom_rate = 2*x-1;		// --> -1..1
-		
-		console.log("Zoom: " + zoom_rate)
+		// We have an audio taper. Take a power to expand the low range
+		zoom_rate = Math.pow(x, 5) - 0.5;
+
+		//console.log("Zoom: " + zoom_rate + "   x: " + x)
 	}
 }
 
