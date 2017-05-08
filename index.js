@@ -17,10 +17,13 @@ url = process.argv[2]
 const frame_rate = 10;
 const x_pan_speed = 10;
 const y_pan_speed = 20;
+const zoom_speed = 1;
 const deadband = 7; 	// scope must be this many degrees away from center to do anything
 
 var pan_rate_x = 0;
 var pan_rate_y = 0;
+var zoom_rate = 0;
+
 var cx=0, cy=0;
 
 var yaw0, pitch0, roll0;
@@ -34,10 +37,8 @@ var browser = new webdriver.Builder()
   .forBrowser('chrome')
   .build();
 
-var cel; // canvas element
-
 browser.get(url);
-
+/*
 // Go full screen
 browser.findElement(webdriver.By.id("full-screen-button"))
 	.then( el => {
@@ -52,8 +53,9 @@ browser.findElement(webdriver.By.id("gigapan-navigation"))
 		browser.executeScript('document.getElementById("footer-panel").style.display = "none";');
 		browser.executeScript('document.getElementById("gigapan-watermark").style.display = "none";');
 	});
-
-// Move mouse to initial position and press button
+*/
+// Move mouse to initial position and press button on canvas
+var cel; // canvas element saved for later
 browser.findElement(webdriver.By.tagName("canvas"))
 	.then( el => {
 		cel = el; 
@@ -75,9 +77,18 @@ function deaden(x) {
 		x = 0;
 	}
 	return x;
-
 }
-// Fired every 50ms. Pans the image at current pan rate
+
+// Returns javascript that sends mousewheel event to browser
+function makeWheelScript(delta) {
+	var str = "var evt = document.createEvent('MouseEvents'); evt.initEvent('mousewheel', true, true); ";
+	str += "evt.wheelDelta = " + delta + "; ";
+	str += "var view = document.getElementsByTagName('canvas')[0]; view.dispatchEvent(evt);";
+	return str;
+}
+
+
+// Fired every frame. Pans the image at current pan rate
 function loop() {
 	if (yaw0 === undefined) {
 		console.log("not yet")
@@ -96,30 +107,20 @@ function loop() {
 
 	cx -= x_pan_speed*pan_rate_x/frame_rate;
 	cy -= y_pan_speed*pan_rate_y/frame_rate;
-	//cx = -iter*10;
-	//cy = -iter*5;
+
 	browser.actions()
 		.mouseMove(cel, {x:Math.round(cx), y:Math.round(cy)})
 		.perform();
 
-	console.log("panx: " + pan_rate_x);
-	console.log("pany: " + pan_rate_y + "\n");
-	console.log("cx: " + cx);
-	console.log("cy: " + cy + "\n");
+  var delta = zoom_rate * zoom_speed;
+  console.log(makeWheelScript(delta))
+	browser.executeScript(makeWheelScript(delta))
 
-/*
-	iter += 1;
-	if (iter > 10) {
-		browser.actions()
-			.mouseUp(cel)
-			.mouseMove(cel, {x:0, y:0})
-			.mouseDown(cel)
-			.perform();
-		cx = 0;
-		cy = 0;
-		iter=0;
-	}
-*/
+	console.log("panx: " + pan_rate_x);
+	console.log("pany: " + pan_rate_y);
+	console.log("cx: " + cx);
+	console.log("cy: " + cy);
+	console.log("delta: " + delta + "\n");
 }
 
 
@@ -139,11 +140,11 @@ function parseLine(line) {
   	roll = parseFloat(tok[2])
   	pitch = parseFloat(tok[3])
 
-  	// Take 10th sample as calibration point, or if yaw suddenly pops
-  	samples+=1;
+  	// Take 10th sample as calibration point, or if orientation suddenly pops
   	var recal = last_yaw && ((Math.abs(yaw-last_yaw) > 20) || (Math.abs(pitch-last_pitch) > 20));
   	if (recal)
   		console.log("Recalibrating...")
+  	samples+=1;
 	  if ((samples == 10) || recal) {
 	  	yaw0 = yaw;
 	  	pitch0 = pitch;
@@ -151,10 +152,16 @@ function parseLine(line) {
 	  }
 
 	  last_yaw = yaw;
+	  last_pitch = pitch;
 
 	  //console.log("yaw:   " +  yaw   + "  yaw0:   " + yaw0)
     //console.log("pitch: " +  pitch + "  pitch0: " + pitch0)
     //console.log("roll:  " +  roll  + "  roll0:  " + roll0 + '\n')
+	} 
+
+	if (tok[0] == "Pot:" && tok.length==2){
+		zoom_rate = parseInt(tok[1]) - 600;			// re-center for the pot we have
+		//console.log("Zoom: " + zoom_rate)
 	}
 }
 
@@ -170,16 +177,13 @@ var port = new SerialPort('/dev/cu.usbmodem1421', {
 var buffer = "";
 
 port.on('data', data => {
-  str = data.toString('utf-8');
-  buffer += str;
+  buffer += data.toString('utf-8');
 
   idx = buffer.indexOf('\r\n');
   while (idx >= 0) {
   	line = buffer.substring(0, idx);
   	buffer = buffer.substring(idx+2, buffer.length);
 
-  	//console.log(line);
-  	//console.log('-----');
   	parseLine(line);
 
   	idx = buffer.indexOf('\r\n');
