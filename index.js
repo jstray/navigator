@@ -18,7 +18,7 @@ const frame_rate = 10;
 const x_pan_speed = 10;
 const y_pan_speed = 20;
 const deadpan = 7; 	// scope must be this many degrees away from center to do anything
-const zoom_speed = 0.2;
+const zoom_speed = 0.1;
 const deadzoom = 0.2; // zoom rate is a -0.5 -> 0.5 scale
 
 var pan_rate_x = 0;
@@ -69,8 +69,7 @@ browser.findElement(webdriver.By.tagName("canvas"))
 	.then( el => {
 		cel = el; 
 
-		browser.actions().click(cel).click(cel).
-			mouseMove(cel, {x:0, y:0}).mouseDown(cel).perform();
+		browser.actions().mouseMove(cel, {x:0, y:0}).mouseDown(cel).perform();
 
 		setInterval(loop, 1000/frame_rate);
 	});
@@ -147,14 +146,14 @@ function parseLine(line) {
   if ((tok[0] == 'Orientation:') && tok.length==4) {
   	yaw = parseFloat(tok[1])
   	roll = parseFloat(tok[2])
-  	pitch = parseFloat(tok[3])
+  	pitch = -parseFloat(tok[3])
 
   	// Take 10th sample as calibration point, or if orientation suddenly pops
   	var recal = last_yaw && ((Math.abs(yaw-last_yaw) > 20) || (Math.abs(pitch-last_pitch) > 20));
   	if (recal)
   		console.log("Recalibrating...")
   	samples+=1;
-	  if ((samples == 10) || recal) {
+	  if ((samples == 20) || recal) {
 	  	yaw0 = yaw;
 	  	pitch0 = pitch;
 	  	roll0 = roll;
@@ -173,7 +172,7 @@ function parseLine(line) {
 		var raw = parseInt(tok[1]) ;	// 0..1023
 
 		var x = (raw-450)/400;
-		zoom_rate = x;
+		zoom_rate = -x;
 
 		//console.log("Zoom: " + zoom_rate + "   x: " + x)
 	}
@@ -182,7 +181,7 @@ function parseLine(line) {
 
 // Open serial port
 var SerialPort = require('serialport');
-var port = new SerialPort('/dev/cu.usbmodem1411', {
+var port = new SerialPort('/dev/cu.usbmodem1421', {
   baudRate: 115200
 });
 
