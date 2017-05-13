@@ -34,8 +34,16 @@ var iter = 0;
 
 var chrome = require('chromedriver');
 var webdriver = require('selenium-webdriver');
+
+var chromeCapabilities = webdriver.Capabilities.chrome();
+var chromeOptions = {
+     'args': ['disable-infobars']
+};
+chromeCapabilities.set('chromeOptions', chromeOptions);
+
 var browser = new webdriver.Builder()
   .forBrowser('chrome')
+  .withCapabilities(chromeCapabilities)
   .build();
 
 browser.get(url);
@@ -164,12 +172,8 @@ function parseLine(line) {
 
 		var raw = parseInt(tok[1]) ;	// 0..1023
 
-		var x = (raw-290)/640;
-		if (x<0.5) x=0.5;
-		x=(x-0.5)*2;
-
-		// We have an audio taper. Take a power to expand the low range
-		zoom_rate = Math.pow(x, 5) - 0.5;
+		var x = (raw-450)/400;
+		zoom_rate = x;
 
 		//console.log("Zoom: " + zoom_rate + "   x: " + x)
 	}
@@ -178,7 +182,7 @@ function parseLine(line) {
 
 // Open serial port
 var SerialPort = require('serialport');
-var port = new SerialPort('/dev/cu.usbmodem1421', {
+var port = new SerialPort('/dev/cu.usbmodem1411', {
   baudRate: 115200
 });
 
