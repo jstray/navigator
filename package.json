@@ -18,7 +18,8 @@
   "homepage": "https://github.com/jstray/navigator#readme",
   "dependencies": {
     "chromedriver": "^2.29.0",
+    "node-fetch": "^1.7.1",
     "selenium-webdriver": "^3.4.0",
-    "serialport":"^4.0.7"
+    "serialport": "^4.0.7"
   }
 }

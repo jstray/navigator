@@ -1,0 +1,43 @@
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+<script src="http:/gigapan.org/javascripts/gigapan_core_min.js?1380820263" type="text/javascript"></script>
+
+<style>
+body {
+	background-color: #000000;
+}
+</style>
+
+<div id="gigapan-viewer"></div>
+
+<script type="text/javascript">
+	var isMobileDeviceUserAgent = false; // seems to be required in gigapan_core
+
+	// Will be called by index2.js with appropriate params
+	window.loadViewer = function(id, width, height, levels) {
+	  viewer = new org.gigapan.viewers.SeadragonViewer("gigapan-viewer", {
+	    id: id,
+	    auth_key: null,
+	    width: width,
+	    height: height,
+	    levels: levels,
+			title: "Navigator",
+			printable: false,
+	    is_private: false,
+			snapshottable: false,
+			related : null,
+			options: {
+				showGigapanWatermarkByDefault: false,
+				showGigapanWatermarkOnFullscreen: false,
+				showNavigationControl: false,
+				showFullScreenButton: false,
+				showResetButton: false,
+				showPrintButton: false,
+				showSnapshotBrowser: false,
+				showSnapshotByDefault: false,
+				showThumbnailNavigation: false,
+				showRelatedGigapans: false
+			} 
+		});
+	}
+
+</script>  
