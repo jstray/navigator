@@ -15,7 +15,7 @@ url = process.argv[2]
 // --- Drive the browser ---
 
 const frame_rate = 10;
-const x_pan_speed = 10;
+const x_pan_speed = 20;
 const y_pan_speed = 20;
 const deadpan = 7; 	// scope must be this many degrees away from center to do anything
 const zoom_speed = 0.1;
@@ -25,7 +25,7 @@ var pan_rate_x = 0;
 var pan_rate_y = 0;
 var zoom_rate = 0;
 
-var cx=0, cy=0;
+var cx=1500, cy=400;
 
 var yaw0, pitch0, roll0;
 var yaw, pitch, roll;
@@ -69,7 +69,7 @@ browser.findElement(webdriver.By.tagName("canvas"))
 	.then( el => {
 		cel = el; 
 
-		browser.actions().mouseMove(cel, {x:0, y:0}).mouseDown(cel).perform();
+		browser.actions().mouseMove(cel, {x:cx, y:cy}).mouseDown(cel).perform();
 
 		setInterval(loop, 1000/frame_rate);
 	});
