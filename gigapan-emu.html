@@ -49,7 +49,8 @@ body {
 		if (viewer) {
 			var viewport = viewer.getViewport();
 			if (viewport) {
-				viewport.panBy(new Seadragon.Point(dx, dy));
+				var zoom = viewport.getZoom();
+				viewport.panBy(new Seadragon.Point(dx/zoom, dy/zoom));
 				viewport.applyConstraints();
 			} 
 		}

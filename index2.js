@@ -1,9 +1,3 @@
-// before release:
-//  - turn on read_serial
-//  - actually load URL
-//  - full screen
-//  - frame rate
-
 // Navigator
 // Read telescope orientation and pan the image on Gigapan
 
@@ -12,16 +6,16 @@ const webdriver = require('selenium-webdriver');
 const fetch = require('node-fetch');
 
 // -- Configuration --
-const frame_rate = 10;
-const x_pan_speed = 0.1;  // units: equivalent arrow key presses per second per degree of deflection
-const y_pan_speed = 0.1;
-const deadpan = 7; 	// scope must be this many degrees away from center to do anything
+var frame_rate = 10;
+var x_pan_speed = 0.5;  // units: equivalent arrow key presses per second per degree of deflection
+var y_pan_speed = 0.5;
+var deadpan = 5; 	// scope must be this many degrees away from center to do anything
 
-const zoom_speed = 2;  	// units: equivalent zoom clicks per second at full throttle
-const deadzoom = 0.2; // zoom rate is a -0.5 -> 0.5 scale
+var zoom_speed = 2; // units: equivalent zoom clicks per second at full throttle
+var deadzoom = 0.1; // zoom rate is about -0.8 -> 0.8 scale
 
 // If false, use test inputs (run without Arduino)
-const read_serial = false;
+var read_serial = true;
 
 // -- Get gigapan URL to open ---
 
@@ -39,8 +33,8 @@ url = process.argv[2]
 // Global variables that we need to pass to browser to initialize the gigapan
 var id = url.substring(url.lastIndexOf('/')+1); // id from end of URL
 var width,height,levels;
-/*
-// Load the main gigapan page and parse these variables directly out of the JS code in the HTML
+
+// Load the main gigapan page and parse image params directly out of the HTML
 fetch(url)
 	.then(response => response.text())
 	.then(text => {
@@ -48,14 +42,11 @@ fetch(url)
 		height = text.match(/"height":(\d+)/)[1];
 		levels = text.match(/"levels":(\d+)/)[1];
 
+		console.log("Image width " + width);
+		console.log("Image height " + height + "\n");
+
 		startBrowser();
 	});
-*/
-		width = 23424;
-		height = 7604;
-		levels = 8;
-		startBrowser();
-
 
 // --- Load the browser with our custom gigapan page  ---
 
@@ -63,10 +54,13 @@ var browser;
 
 function startBrowser() {
 
-	// Turn off the "browser is being driven by automation banner"
+	// Load our custom page
+	var page="file://" + __dirname + "/gigapan-emu.html";
+
+	// Start chrome in fullscreen, use "app" to load without address bar, also conviently goes to this URL
 	var chromeCapabilities = webdriver.Capabilities.chrome();
 	var chromeOptions = {
-	     'args': ['disable-infobars']
+		'args': ['--start-fullscreen', '--app=' + page]
 	};
 	chromeCapabilities.set('chromeOptions', chromeOptions);
 
@@ -75,15 +69,16 @@ function startBrowser() {
 	  .withCapabilities(chromeCapabilities)
 	  .build();
 
-	// Load our custom page
-	browser.get("file://" + __dirname + "/gigapan-emu.html");
+	// wait for page to load...
+	browser.findElement(webdriver.By.id("gigapan-viewer"))
+		.then( () => {
+			// Call load function with our ill-gotten parameters
+			var txt = "loadViewer(" +  id + "," + width + "," + height + "," + levels + ");"
+			browser.executeScript(txt);
 
-	// Call load function with our ill-gotten parameters
-	var txt = "loadViewer(" +  id + "," + width + "," + height + "," + levels + ");"
-	browser.executeScript(txt);
-
-	// start main loop
-	setInterval(loop, 1000/frame_rate);
+			// start main loop
+			setInterval(loop, 1000/frame_rate);			
+		});
 }
 
 
@@ -98,11 +93,7 @@ var iter=0;
 
 // Deadband -- area near center of control where there is no panning
 function deaden(x, d) {
-	if (x > d) {
-		x -= d;
-	} else if (x < -d) {
-		x += d;
-	} else {
+	if (x < d && x > -d) {
 		x = 0;
 	}
 	return x;
@@ -130,13 +121,11 @@ function loop() {
 	var dx = 0.025*x_pan_speed*pan_rate_x/frame_rate;		// 0.025 = one arrow key press in gigapan viewer
 	var dy = 0.025*y_pan_speed*pan_rate_y/frame_rate;
 
-
 	// Drive the image pan and zoom at computed rates by calling into browser functions
 	var txt = "if (window.panBy) panBy(" +  dx + "," + dy + ");";
 	browser.executeScript(txt);
 
 	var dzoom = Math.pow(2, deaden(zoom_rate,deadzoom) * zoom_speed / frame_rate); // 2 = gigapan zoomPerClick
-	//var dzoom=1.1;
 
 	txt = "if (window.zoomBy) zoomBy(" + dzoom + ");";
 	browser.executeScript(txt);
@@ -145,9 +134,16 @@ function loop() {
 	console.log("pany: " + dy);
 	console.log("zoom: " + dzoom + "\n");
 
-	iter += 1;
-	if (iter == 10*frame_rate) {
-		zoom_rate *= -1;
+	// if running in test more: reverse zoom after 8s, stop pan after 12s
+	if (!read_serial) {
+		iter += 1;
+		if (iter == 8*frame_rate) {
+			zoom_rate *= -1;
+		}
+		if (iter == 12*frame_rate) {
+			yaw=0;
+			pitch=0;
+		}
 	}
 }
 
@@ -233,7 +229,7 @@ if (read_serial) {
 	yaw = 20;
 	pitch0 = 0;
 	pitch = 0;
-	zoom_rate = 0.5;
+	zoom_rate = 0.3;
 }
 
 
